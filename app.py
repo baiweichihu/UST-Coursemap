@@ -114,15 +114,40 @@ def _build_export_html(
         const container = document.getElementById('graph');
         const data = {{ nodes, edges }};
         const options = {{
-            physics: {{ enabled: true }},
+            physics: {{ enabled: false }},
+            layout: {{ hierarchical: {{ enabled: true, direction: 'LR', sortMethod: 'directed' }} }},
             interaction: {{ hover: true, navigationButtons: true }},
-            edges: {{ arrows: {{ to: {{ enabled: true, scaleFactor: 0.7 }} }} }},
+            edges: {{
+                arrows: {{ to: {{ enabled: true, scaleFactor: 0.7 }} }},
+                smooth: {{ enabled: true, type: 'horizontal', roundness: 0.0 }}
+            }},
             nodes: {{ shape: 'box', margin: 8, font: {{ size: 15 }} }}
         }};
         new vis.Network(container, data, options);
     </script>
 </body>
 </html>"""
+
+
+def _subject_prefix(course_code: str) -> str:
+    return course_code.split(" ", 1)[0].upper() if course_code else ""
+
+
+def _build_search_suggestions(payload: dict[str, Any], query: str, limit: int = 30) -> list[str]:
+    q = query.strip().upper()
+    if not q:
+        return []
+
+    suggestions: list[str] = []
+    for node in payload.get("nodes", []):
+        code = str(node.get("id", "")).strip()
+        title = str(node.get("hover", {}).get("title", "")).strip()
+        if not code:
+            continue
+        if q in code.upper() or q in title.upper():
+            suggestions.append(f"{code} - {title}" if title else code)
+    suggestions.sort()
+    return suggestions[:limit]
 
 
 def _build_undirected_graph(edges: list[dict[str, Any]], relation_allow: set[str]) -> nx.Graph:
@@ -189,6 +214,7 @@ def _build_graph_elements(
     *,
     selected: Optional[str],
     relation_allow: set[str],
+    subject_allow: set[str],
     search_text: str,
     completed_courses: set[str],
     max_nodes_display: int,
@@ -199,8 +225,21 @@ def _build_graph_elements(
     node_map = {str(n.get("id")): n for n in all_nodes}
 
     displayed_node_ids = set(node_map.keys())
+    if subject_allow:
+        displayed_node_ids = {
+            node_id
+            for node_id in displayed_node_ids
+            if _subject_prefix(node_id) in subject_allow
+        }
+
     if selected:
         displayed_node_ids = _component_nodes_for_selected(selected, all_edges, relation_allow)
+        if subject_allow:
+            displayed_node_ids = {
+                node_id
+                for node_id in displayed_node_ids
+                if _subject_prefix(node_id) in subject_allow or node_id == selected
+            }
 
     query = search_text.strip().upper()
     if query:
@@ -286,73 +325,28 @@ def _build_graph_elements(
         dashed = bool(style.get("line_style") == "dashed")
         color = _edge_color(str(relation))
 
-        if relation == "pre_req":
-            # Render two close curves to emulate a double-line shaft for pre-req edges.
-            edges.append(
-                Edge(
-                    source=src,
-                    target=tgt,
-                    color=color,
-                    dashes=False,
-                    width=2,
-                    title=_edge_title(edge),
-                    smooth={"enabled": True, "type": "curvedCW", "roundness": 0.08},
-                )
+        edges.append(
+            Edge(
+                source=src,
+                target=tgt,
+                color=color,
+                dashes=dashed,
+                width=2,
+                title=_edge_title(edge),
+                smooth={"enabled": True, "type": "horizontal", "roundness": 0.0},
             )
-            edges_data.append(
-                {
-                    "from": src,
-                    "to": tgt,
-                    "color": color,
-                    "dashes": False,
-                    "width": 2,
-                    "title": _edge_title(edge),
-                    "smooth": {"enabled": True, "type": "curvedCW", "roundness": 0.08},
-                }
-            )
-            edges.append(
-                Edge(
-                    source=src,
-                    target=tgt,
-                    color=color,
-                    dashes=False,
-                    width=2,
-                    title=_edge_title(edge),
-                    smooth={"enabled": True, "type": "curvedCCW", "roundness": 0.08},
-                )
-            )
-            edges_data.append(
-                {
-                    "from": src,
-                    "to": tgt,
-                    "color": color,
-                    "dashes": False,
-                    "width": 2,
-                    "title": _edge_title(edge),
-                    "smooth": {"enabled": True, "type": "curvedCCW", "roundness": 0.08},
-                }
-            )
-        else:
-            edges.append(
-                Edge(
-                    source=src,
-                    target=tgt,
-                    color=color,
-                    dashes=dashed,
-                    width=2,
-                    title=_edge_title(edge),
-                )
-            )
-            edges_data.append(
-                {
-                    "from": src,
-                    "to": tgt,
-                    "color": color,
-                    "dashes": dashed,
-                    "width": 2,
-                    "title": _edge_title(edge),
-                }
-            )
+        )
+        edges_data.append(
+            {
+                "from": src,
+                "to": tgt,
+                "color": color,
+                "dashes": dashed,
+                "width": 2,
+                "title": _edge_title(edge),
+                "smooth": {"enabled": True, "type": "horizontal", "roundness": 0.0},
+            }
+        )
 
     return nodes, edges, displayed_node_ids, nodes_data, edges_data
 
@@ -417,6 +411,19 @@ def main() -> None:
 
     with st.sidebar:
         semester = st.selectbox("Semester", semesters, index=0)
+
+    payload = load_graph_payload(semester)
+    canonical_payload = load_canonical_payload(semester)
+
+    subject_options = sorted(
+        {
+            _subject_prefix(str(node.get("id", "")))
+            for node in payload.get("nodes", [])
+            if str(node.get("id", "")).strip()
+        }
+    )
+
+    with st.sidebar:
         st.markdown("### Snapshot Status")
         snapshot_dir = PROJECT_ROOT / "data" / "snapshots" / semester
         status_files = {
@@ -438,13 +445,27 @@ def main() -> None:
                 default=relation_options,
             )
         )
+        subject_allow = set(
+            st.multiselect(
+                "Subject filter (e.g. COMP, ECON)",
+                subject_options,
+                default=[],
+            )
+        )
         search_text = st.text_input("Search course code/title")
+        search_suggestions = _build_search_suggestions(payload, search_text)
+        suggestion_pick = st.selectbox(
+            "Search suggestions (live)",
+            options=search_suggestions,
+            index=None,
+            placeholder="Type above to see matching course suggestions",
+        )
         max_nodes_display = st.slider(
             "Max nodes shown (dense readability)",
-            min_value=50,
-            max_value=2000,
-            value=600,
-            step=50,
+            min_value=20,
+            max_value=1000,
+            value=200,
+            step=20,
         )
         st.markdown("### Interaction")
         reset = st.button("Reset Selected Course")
@@ -505,9 +526,6 @@ def main() -> None:
                 err = (m3.stderr or "") + "\n" + (tag.stderr or "")
                 st.error(err[-700:] if err.strip() else "Rebuild failed")
 
-    payload = load_graph_payload(semester)
-    canonical_payload = load_canonical_payload(semester)
-
     if "selected_course" not in st.session_state:
         st.session_state.selected_course = None
     if "completed_courses" not in st.session_state:
@@ -533,15 +551,31 @@ def main() -> None:
                 st.session_state.completed_courses = st.session_state.completed_courses + [code]
                 st.rerun()
 
+    query_text = suggestion_pick.split(" - ", 1)[0].strip() if suggestion_pick else search_text.strip()
+    if not query_text:
+        st.info("Type a course code/title in sidebar search to start.")
+        return
+
     selected_course = st.session_state.selected_course
     nodes, edges, displayed_node_ids, nodes_data, edges_data = _build_graph_elements(
         payload,
         selected=selected_course,
         relation_allow=relation_allow,
-        search_text=search_text,
+        subject_allow=subject_allow,
+        search_text=query_text,
         completed_courses=set(st.session_state.completed_courses),
         max_nodes_display=max_nodes_display,
     )
+
+    if not nodes:
+        st.warning("No courses matched current search/filter. Try widening keyword or clearing subject filters.")
+        return
+
+    if len(nodes) > 700 or len(edges) > 1800:
+        st.error(
+            "Result set is too large and may cause rendering/read errors. Narrow by course code and/or subject filter."
+        )
+        return
 
     export_html = _build_export_html(
         semester=semester,
@@ -576,18 +610,24 @@ def main() -> None:
         st.markdown(
             f"Displayed Nodes: `{len(nodes)}` | Displayed Edges: `{len(edges)}` | Selected: `{selected_course or '-'}"  # noqa: E501
         )
+        st.caption("Click a node to focus only its related chain. Layout is static (no auto motion).")
         config = Config(
             width="100%",
             height=760,
             directed=True,
-            physics=True,
-            hierarchical=False,
+            physics=False,
+            hierarchical=True,
             nodeHighlightBehavior=True,
             highlightColor="#ffe082",
             collapsible=False,
-            staticGraph=False,
+            staticGraph=True,
         )
-        picked = agraph(nodes=nodes, edges=edges, config=config)
+        try:
+            picked = agraph(nodes=nodes, edges=edges, config=config)
+        except Exception as exc:
+            st.error(f"Graph render failed (read error): {exc}")
+            st.info("Please narrow search/filter and retry.")
+            return
         if isinstance(picked, str) and picked:
             st.session_state.selected_course = picked
             st.rerun()

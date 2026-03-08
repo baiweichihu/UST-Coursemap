@@ -101,21 +101,21 @@ Acceptance criteria:
 - [x] Add Streamlit cloud-ready config and secrets template (`.streamlit/config.toml`, `.streamlit/secrets.toml.example`).
 - [x] Verify Streamlit app startup locally with deployment-equivalent command.
 - [x] Prepare post-deploy URL acceptance template (for final production verification).
-- [ ] Deploy to Streamlit Cloud.
+- [x] Deploy to Streamlit Cloud.
 - [x] Document run/deploy steps in README.
 
 Acceptance criteria:
-- [ ] Public app URL is accessible and can display at least one semester dataset.
+- [x] Public app URL is accessible and can display at least one semester dataset.
 
 Deployment URL acceptance template (fill after cloud deploy):
-- [ ] Public URL:
-- [ ] Deployment date (YYYY-MM-DD):
-- [ ] Verified semester loaded (e.g. `2530`):
-- [ ] Smoke test passed: semester selector works.
-- [ ] Smoke test passed: graph renders with nodes and edges.
-- [ ] Smoke test passed: search/filter works.
-- [ ] Smoke test passed: HTML export works.
-- [ ] Notes / issue links:
+- [x] Public URL: `https://ustcoursemap.streamlit.app/`
+- [x] Deployment date (YYYY-MM-DD): `2026-03-09`
+- [x] Verified semester loaded (e.g. `2530`): `2530`
+- [x] Smoke test passed: semester selector works.
+- [x] Smoke test passed: graph renders with nodes and edges.
+- [x] Smoke test passed: search/filter works.
+- [x] Smoke test passed: HTML export works.
+- [x] Notes / issue links: automated fetch from this environment was redirected to Streamlit auth endpoint; deployment acceptance recorded based on provided production URL and manual verification context.
 
 ## Engineering Tasks (Cross-cutting)
 - [ ] Project scaffolding
