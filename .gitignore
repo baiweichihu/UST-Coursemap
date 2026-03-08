@@ -1,0 +1,14 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.env
+.env.*
+!.env.example
+data/snapshots/*/ustspace_storage_state.json
+
+# Local Streamlit secrets
+.streamlit/secrets.toml
+
+# Local debug/temp artifacts
+tmp_ustspace_*
