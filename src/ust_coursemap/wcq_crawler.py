@@ -39,6 +39,8 @@ class CourseRecord:
     exclusion_text: str
     attributes_text: str
     description: str
+    cross_campus_course_equivalence: str
+    alternate_codes: str
     class_quota_total: Optional[int]
     class_enrol_total: Optional[int]
     class_avail_total: Optional[int]
@@ -119,6 +121,8 @@ def _extract_course_attrs(course_node: Tag) -> dict[str, str]:
         "EXCLUSION": "",
         "ATTRIBUTES": "",
         "DESCRIPTION": "",
+        "CROSS CAMPUS COURSE EQUIVALENCE": "",
+        "ALTERNATE CODE(S)": "",
     }
 
     detail = course_node.select_one("div.courseattr div.popupdetail table")
@@ -198,6 +202,8 @@ def parse_courses(html: str) -> list[CourseRecord]:
                 exclusion_text=attrs["EXCLUSION"],
                 attributes_text=attrs["ATTRIBUTES"],
                 description=attrs["DESCRIPTION"],
+                cross_campus_course_equivalence=attrs["CROSS CAMPUS COURSE EQUIVALENCE"],
+                alternate_codes=attrs["ALTERNATE CODE(S)"],
                 class_quota_total=_sum_optional([s.quota for s in sections]),
                 class_enrol_total=_sum_optional([s.enrol for s in sections]),
                 class_avail_total=_sum_optional([s.avail for s in sections]),

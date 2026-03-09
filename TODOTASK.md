@@ -72,12 +72,15 @@ Acceptance criteria:
 - [x] Add separate edge style for exclusion relations.
 - [x] Render interactive graph with Streamlit graph component (updated requirement).
 - [x] Implement node hover tooltip (course code + 4 review metrics).
-- [x] Implement node click highlight (upstream/downstream dependency chain).
+- [x] Implement node click detail focus and related-path mode toggle.
 
 Implementation notes:
 - [x] Search by course code/title implemented in Streamlit prototype.
 - [x] Relations now always enabled (pre/co/exclusion), and relation filter control removed in current Streamlit UI.
-- [x] Click focuses full connected subgraph and shows full detail panel.
+- [x] Default UI is subject overview; subject click drills down to course graph.
+- [x] Course graph uses radial importance layout (center-high, outer-low).
+- [x] Same-stem variants (e.g. `COMP 4971A/B/C`) are grouped to reduce horizontal spread.
+- [x] Click updates detail panel and supports related-path focus mode.
 - [x] Pre-req uses double-line shaft emulation (`=>`), co-req solid single line, exclusion dashed single line.
 
 Acceptance criteria:
@@ -124,7 +127,9 @@ Deployment URL acceptance template (fill after cloud deploy):
   - [ ] `tests/`
 - [ ] Dependency management (`requirements.txt` or `pyproject.toml`).
 - [ ] Logging and error-report conventions.
-- [ ] Config management (`.env` for credentials, no secrets in repo).
+- [x] Config management (`.env` for credentials, no secrets in repo).
+  - [x] `.env` local credential workflow documented and used for crawler runtime.
+  - [x] `.gitignore` excludes `.env` and `.env.*` (keeping `!.env.example`).
 - [x] Add `.gitignore` for data artifacts and local credentials.
 - [ ] Add MIT license notice and legal disclaimer in docs.
 

@@ -34,6 +34,7 @@ python scripts/crawl_wcq_snapshot.py 2530 --force-refresh
 ## Step 2: USTSpace Review Snapshot + Merge
 
 Milestone 2 uses Playwright for authenticated crawling and keeps per-semester cache files.
+When available from the upstream payload, per-course `review_count` is captured alongside rating dimensions.
 
 ### Install Dependencies
 
@@ -47,6 +48,23 @@ python -m playwright install chromium
 ```powershell
 $env:USTSPACE_USERNAME="your_itsc"
 $env:USTSPACE_PASSWORD="your_password"
+```
+
+Or use `.env` at repo root:
+
+```env
+USTSPACE_USERNAME=your_itsc
+USTSPACE_PASSWORD=your_password
+```
+
+Load `.env` into current PowerShell session before crawling:
+
+```powershell
+Get-Content .env | ForEach-Object {
+	if ($_ -match '^\s*#' -or $_ -match '^\s*$') { return }
+	$kv = $_.Split('=', 2)
+	if ($kv.Length -eq 2) { [Environment]::SetEnvironmentVariable($kv[0], $kv[1]) }
+}
 ```
 
 ### Run
@@ -113,7 +131,7 @@ Model notes:
 - `co_req` edge style: single-direction, solid, single-head arrow metadata.
 - `exclusion` edge style: single-direction, dashed, single-head arrow metadata.
 - Mutual exclusions are represented by two opposite-direction exclusion edges and marked with `is_mutual_exclusion=true`.
-- Node payload includes `hover` fields (`course_code`, `title`, `special_tags`, 4-dimension reviews) and full `details` for click panels.
+- Node payload includes `hover` fields (`course_code`, `title`, `special_tags`, `review_count`, 4-dimension reviews) and full `details` for click panels.
 
 ## Step 4: Streamlit Graph Prototype (M4)
 
@@ -125,18 +143,24 @@ streamlit run app.py
 
 Implemented interactions:
 
-- Course node is a rectangle (`box`) and initially shows course code on graph.
-- Hover shows: course code, title, normalized special tags, and 4-dimension rating letters (`O/T/W/G`).
-- Click a course node to focus on the full connected chain (both incoming and outgoing req/exclusion links).
-- Click blank area (when event is emitted by the graph component) to clear current selection.
-- Right panel shows full course details (excluding quota/enrol/avail/wait numbers in sections).
-- Relations are always enabled (`pre_req` / `co_req` / `exclusion`) and no longer shown as a user filter.
+- Semester selector includes regular snapshot terms and virtual aggregate options (`2025-2026 All`, `2025-2026 Fall (F/S)`).
+- Default view is subject overview; clicking a subject drills down to course-level view.
+- Course graph uses a radial importance layout: higher-importance courses are placed near center; lower-importance courses are pushed toward outer rings.
+- Same-stem variants (for example `COMP 4971A/B/C`) are grouped to reduce horizontal fragmentation.
+- Click a course node to update detail panel; fast second click on the same node toggles related-path focus mode.
+- Right panel shows full course details and review letter grades; review count is shown when available from USTSpace snapshot metadata.
+- Relations are always enabled (`pre_req` / `co_req` / `exclusion`) and no longer exposed as a user filter.
 - Search supports course code or title.
-- Completed-course list is shown one course per row (sorted), with a red `-` button on the right to remove entries.
-- `Add Selected As Completed` adds the currently selected node into completed courses.
+- Completed-course list is shown one course per row (sorted), with a `-` button on the right to remove entries.
 - Current graph view can be exported as a standalone HTML file.
-- Dense readability control is available with `Max nodes shown`.
-- Sidebar shows snapshot file status only (manual refresh/rebuild buttons are removed from UI).
+- Sidebar refresh/rebuild actions are not exposed in app UI.
+
+Double-click behavior note:
+
+- `streamlit-agraph` upstream frontend includes a built-in double-click `window.open(...)` behavior.
+- In this local environment, that behavior is patched out in installed package bundle:
+	- `D:\Python-3.14.3\Lib\site-packages\streamlit_agraph\frontend\build\static\js\main.df689717.chunk.js`
+- If `streamlit-agraph` is upgraded/reinstalled, re-apply this patch.
 
 Edge style mapping in graph metadata:
 

@@ -19,10 +19,13 @@ class CanonicalCourse:
     credits: Optional[int]
     description: str
     attributes_text: str
+    cross_campus_course_equivalence: str
+    alternate_codes: str
     special_tags: list[str]
     pre_reqs: Optional[dict[str, Any]]
     co_reqs: Optional[dict[str, Any]]
     exclusions: list[str]
+    review_count: Optional[int]
     reviews: dict[str, Optional[float]]
     raw_pre_req_text: str
     raw_co_req_text: str
@@ -130,6 +133,8 @@ def build_canonical_courses(merged_payload: dict[str, Any]) -> list[CanonicalCou
         co_text = str(item.get("co_req_text", "")).strip()
         exclusion_text = str(item.get("exclusion_text", "")).strip()
         attributes_text = str(item.get("attributes_text", "")).strip()
+        cross_campus_course_equivalence = str(item.get("cross_campus_course_equivalence", "")).strip()
+        alternate_codes = str(item.get("alternate_codes", "")).strip()
         raw_sections = item.get("sections", [])
         sections: list[dict[str, str]] = []
         for section in raw_sections if isinstance(raw_sections, list) else []:
@@ -161,10 +166,17 @@ def build_canonical_courses(merged_payload: dict[str, Any]) -> list[CanonicalCou
                 credits=item.get("credits"),
                 description=description,
                 attributes_text=attributes_text,
+                cross_campus_course_equivalence=cross_campus_course_equivalence,
+                alternate_codes=alternate_codes,
                 special_tags=special_tags,
                 pre_reqs=parse_requirement_expression(pre_text),
                 co_reqs=parse_requirement_expression(co_text),
                 exclusions=parse_exclusions(exclusion_text),
+                review_count=(
+                    int(item.get("reviews", {}).get("review_count"))
+                    if isinstance(item.get("reviews", {}).get("review_count"), (int, float))
+                    else None
+                ),
                 reviews=_normalize_review(item.get("reviews", {})),
                 raw_pre_req_text=pre_text,
                 raw_co_req_text=co_text,
@@ -183,6 +195,7 @@ def _node_payload(course: CanonicalCourse) -> dict[str, Any]:
         "hover": {
             "course_code": course.course_code,
             "title": course.title,
+            "review_count": course.review_count,
             "special_tags": course.special_tags,
             "reviews": course.reviews,
         },
@@ -246,6 +259,7 @@ def build_graph_payload(courses: list[CanonicalCourse]) -> dict[str, Any]:
                 "credits": None,
                 "description": "",
                 "special_tags": [],
+                "review_count": None,
                 "pre_reqs": None,
                 "co_reqs": None,
                 "exclusions": [],

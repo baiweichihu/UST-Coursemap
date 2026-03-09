@@ -37,11 +37,26 @@ Then click `Save` and `Reboot app`.
 
 - [ ] App opens without crash.
 - [ ] Semester selector shows at least one semester (for example `2530`).
-- [ ] Graph is visible with nodes and edges.
+- [ ] Default graph is subject overview and is visible.
+- [ ] Clicking a subject drills down to course-level graph.
 - [ ] Search by `COMP 1021` works.
 - [ ] Subject filter works.
 - [ ] Completed courses list supports add/remove (one course per row, right-side red `-`).
+- [ ] Double-click on node does NOT open external URL.
 - [ ] `Download Current View (HTML)` works.
+
+## F) Local Crawler Credential Note
+
+- Local crawler runtime can use either shell env vars or `.env` loaded into current shell.
+- Recommended PowerShell loader:
+
+```powershell
+Get-Content .env | ForEach-Object {
+   if ($_ -match '^\s*#' -or $_ -match '^\s*$') { return }
+   $kv = $_.Split('=', 2)
+   if ($kv.Length -eq 2) { [Environment]::SetEnvironmentVariable($kv[0], $kv[1]) }
+}
+```
 
 ## E) URL Acceptance Record (copy back to TODOTASK.md)
 

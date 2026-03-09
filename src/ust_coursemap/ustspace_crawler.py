@@ -21,6 +21,7 @@ USTSPACE_REVIEW_GET_URL_TEMPLATE = "https://ust.space/review/{course_slug}/get"
 class ReviewRecord:
     course_code: str
     source_url: str
+    review_count: Optional[int]
     overall: Optional[float]
     teaching: Optional[float]
     workload: Optional[float]
@@ -84,6 +85,70 @@ def _to_float_or_none(value: object) -> Optional[float]:
         return float(value)
     except (TypeError, ValueError):
         return None
+
+
+def _to_int_or_none(value: object) -> Optional[int]:
+    if value is None:
+        return None
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, int):
+        return value
+    if isinstance(value, float):
+        return int(value)
+    if isinstance(value, str):
+        value = value.strip()
+        if not value:
+            return None
+        if value.isdigit():
+            return int(value)
+        try:
+            return int(float(value))
+        except ValueError:
+            return None
+    return None
+
+
+def _extract_review_count(payload: dict) -> Optional[int]:
+    if not isinstance(payload, dict):
+        return None
+
+    candidate_values: list[object] = []
+    course = payload.get("course")
+    if isinstance(course, dict):
+        for key in [
+            "review_count",
+            "reviews_count",
+            "rating_count",
+            "ratings_count",
+            "total_reviews",
+            "num_reviews",
+            "reviewCount",
+            "reviewsCount",
+        ]:
+            candidate_values.append(course.get(key))
+
+    for key in [
+        "review_count",
+        "reviews_count",
+        "rating_count",
+        "ratings_count",
+        "total_reviews",
+        "num_reviews",
+        "reviewCount",
+        "reviewsCount",
+    ]:
+        candidate_values.append(payload.get(key))
+
+    for value in candidate_values:
+        parsed = _to_int_or_none(value)
+        if parsed is not None and parsed >= 0:
+            return parsed
+
+    reviews_obj = payload.get("reviews")
+    if isinstance(reviews_obj, list):
+        return len(reviews_obj)
+    return None
 
 
 def parse_review_metrics_from_payload(payload: dict) -> dict[str, Optional[float]]:
@@ -273,6 +338,7 @@ def crawl_ustspace_reviews(
                     )
 
             metrics = parse_review_metrics_from_payload(payload)
+            review_count = _extract_review_count(payload)
             if has_review_page_payload(payload):
                 review_page_exists_count += 1
             has_any_metric = any(v is not None for v in metrics.values())
@@ -283,6 +349,7 @@ def crawl_ustspace_reviews(
                 ReviewRecord(
                     course_code=course_code,
                     source_url=url,
+                    review_count=review_count,
                     overall=metrics["overall"],
                     teaching=metrics["teaching"],
                     workload=metrics["workload"],
@@ -331,10 +398,11 @@ def merge_raw_and_reviews(semester: str, *, project_root: Path) -> Path:
     raw_payload = json.loads(raw_file.read_text(encoding="utf-8"))
     review_payload = json.loads(review_file.read_text(encoding="utf-8"))
 
-    review_map: dict[str, dict[str, Optional[float]]] = {}
+    review_map: dict[str, dict[str, Optional[float] | Optional[int]]] = {}
     for item in review_payload.get("reviews", []):
         code = normalize_course_code(str(item.get("course_code", "")))
         review_map[code] = {
+            "review_count": item.get("review_count"),
             "overall": item.get("overall"),
             "teaching": item.get("teaching"),
             "workload": item.get("workload"),
@@ -347,6 +415,7 @@ def merge_raw_and_reviews(semester: str, *, project_root: Path) -> Path:
         review = review_map.get(
             code,
             {
+                "review_count": None,
                 "overall": None,
                 "teaching": None,
                 "workload": None,
