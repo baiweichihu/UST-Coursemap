@@ -1,5 +1,4 @@
 import json
-import subprocess
 import sys
 from pathlib import Path
 from typing import Any, Optional
@@ -403,6 +402,17 @@ def main() -> None:
     st.set_page_config(page_title="UST CourseMap - M4", layout="wide")
     st.title("UST CourseMap - Milestone 4 Prototype")
     st.caption("Rectangular nodes, typed relations, hover details, click-to-chain focus, and full course detail panel")
+    st.markdown(
+        """
+        <style>
+        div[data-testid="stButton"] button[kind="secondary"] {
+            color: #b00020;
+            border-color: #b00020;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
 
     semesters = list_semesters()
     if not semesters:
@@ -423,6 +433,8 @@ def main() -> None:
         }
     )
 
+    relation_allow = {"pre_req", "co_req", "exclusion"}
+
     with st.sidebar:
         st.markdown("### Snapshot Status")
         snapshot_dir = PROJECT_ROOT / "data" / "snapshots" / semester
@@ -437,14 +449,6 @@ def main() -> None:
             st.write(f"{'OK' if exists else 'MISS'}  {name}")
 
         st.markdown("### Filters")
-        relation_options = ["pre_req", "co_req", "exclusion"]
-        relation_allow = set(
-            st.multiselect(
-                "Relations",
-                relation_options,
-                default=relation_options,
-            )
-        )
         subject_allow = set(
             st.multiselect(
                 "Subject filter (e.g. COMP, ECON)",
@@ -467,71 +471,11 @@ def main() -> None:
             value=200,
             step=20,
         )
-        st.markdown("### Interaction")
-        reset = st.button("Reset Selected Course")
-
-        st.markdown("### Snapshot Actions")
-        if st.button("Force Refresh WCQ"):
-            result = subprocess.run(
-                [
-                    sys.executable,
-                    "scripts/crawl_wcq_snapshot.py",
-                    semester,
-                    "--force-refresh",
-                ],
-                cwd=str(PROJECT_ROOT),
-                capture_output=True,
-                text=True,
-            )
-            if result.returncode == 0:
-                st.success("WCQ refreshed")
-            else:
-                st.error(result.stderr[-500:] if result.stderr else "WCQ refresh failed")
-
-        if st.button("Force Refresh USTSpace + Merge"):
-            result = subprocess.run(
-                [
-                    sys.executable,
-                    "scripts/crawl_ustspace_snapshot.py",
-                    semester,
-                    "--force-refresh",
-                ],
-                cwd=str(PROJECT_ROOT),
-                capture_output=True,
-                text=True,
-            )
-            if result.returncode == 0:
-                st.success("USTSpace refreshed and merged")
-            else:
-                st.error(result.stderr[-500:] if result.stderr else "USTSpace refresh failed")
-
-        if st.button("Rebuild M3 + Tag Dictionary"):
-            m3 = subprocess.run(
-                [sys.executable, "scripts/build_m3_model.py", semester],
-                cwd=str(PROJECT_ROOT),
-                capture_output=True,
-                text=True,
-            )
-            tag = subprocess.run(
-                [sys.executable, "scripts/build_tag_dictionary.py", semester],
-                cwd=str(PROJECT_ROOT),
-                capture_output=True,
-                text=True,
-            )
-            if m3.returncode == 0 and tag.returncode == 0:
-                load_graph_payload.clear()
-                load_canonical_payload.clear()
-                st.success("M3 payload and tag dictionary rebuilt")
-            else:
-                err = (m3.stderr or "") + "\n" + (tag.stderr or "")
-                st.error(err[-700:] if err.strip() else "Rebuild failed")
 
     if "selected_course" not in st.session_state:
         st.session_state.selected_course = None
     if "completed_courses" not in st.session_state:
         st.session_state.completed_courses = []
-    if reset:
-        st.session_state.selected_course = None
 
     all_courses = sorted(
         [str(node.get("id", "")) for node in payload.get("nodes", []) if str(node.get("id", ""))]
@@ -539,17 +483,30 @@ def main() -> None:
 
     with st.sidebar:
         st.markdown("### Completed Courses")
-        completed_selected = st.multiselect(
-            "Mark completed",
-            options=all_courses,
-            default=[c for c in st.session_state.completed_courses if c in all_courses],
-        )
-        st.session_state.completed_courses = completed_selected
-        if st.session_state.selected_course and st.button("Add Selected As Completed"):
+        st.caption("One course per row. Click '-' on the right to remove.")
+        st.session_state.completed_courses = [
+            c for c in st.session_state.completed_courses if c in all_courses
+        ]
+        completed_sorted = sorted(set(st.session_state.completed_courses))
+
+        if st.session_state.selected_course and st.button("Add Selected As Completed", type="primary"):
             code = st.session_state.selected_course
             if code not in st.session_state.completed_courses:
                 st.session_state.completed_courses = st.session_state.completed_courses + [code]
                 st.rerun()
+
+        if not completed_sorted:
+            st.write("(none)")
+        for code in completed_sorted:
+            left_col, right_col = st.columns([5, 1], vertical_alignment="center")
+            left_col.write(code)
+            key = f"remove_completed_{code.replace(' ', '_')}"
+            with right_col:
+                if st.button("-", key=key, type="secondary"):
+                    st.session_state.completed_courses = [
+                        c for c in st.session_state.completed_courses if c != code
+                    ]
+                    st.rerun()
 
     query_text = suggestion_pick.split(" - ", 1)[0].strip() if suggestion_pick else search_text.strip()
     if not query_text:
@@ -628,9 +585,15 @@ def main() -> None:
             st.error(f"Graph render failed (read error): {exc}")
             st.info("Please narrow search/filter and retry.")
             return
-        if isinstance(picked, str) and picked:
-            st.session_state.selected_course = picked
-            st.rerun()
+        if isinstance(picked, str):
+            picked = picked.strip()
+            if picked:
+                if st.session_state.selected_course != picked:
+                    st.session_state.selected_course = picked
+                    st.rerun()
+            elif st.session_state.selected_course is not None:
+                st.session_state.selected_course = None
+                st.rerun()
 
     with right:
         details = _get_node_details(payload, st.session_state.selected_course)
