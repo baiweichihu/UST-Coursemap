@@ -128,13 +128,15 @@ Implemented interactions:
 - Course node is a rectangle (`box`) and initially shows course code on graph.
 - Hover shows: course code, title, normalized special tags, and 4-dimension rating letters (`O/T/W/G`).
 - Click a course node to focus on the full connected chain (both incoming and outgoing req/exclusion links).
+- Click blank area (when event is emitted by the graph component) to clear current selection.
 - Right panel shows full course details (excluding quota/enrol/avail/wait numbers in sections).
-- Relation filter supports `pre_req` / `co_req` / `exclusion`.
+- Relations are always enabled (`pre_req` / `co_req` / `exclusion`) and no longer shown as a user filter.
 - Search supports course code or title.
-- Completed-course marking is supported from sidebar (`Completed Courses`).
+- Completed-course list is shown one course per row (sorted), with a red `-` button on the right to remove entries.
+- `Add Selected As Completed` adds the currently selected node into completed courses.
 - Current graph view can be exported as a standalone HTML file.
 - Dense readability control is available with `Max nodes shown`.
-- Snapshot status and manual refresh/rebuild actions are available in sidebar.
+- Sidebar shows snapshot file status only (manual refresh/rebuild buttons are removed from UI).
 
 Edge style mapping in graph metadata:
 
@@ -175,10 +177,11 @@ streamlit run app.py
 6. Deploy and verify:
 	- At least one semester appears in selector.
 	- Graph renders and node click updates detail panel.
-	- Search/filter works.
+	- Search and subject filter work.
+	- Completed-course add/remove list works.
 	- HTML export downloads successfully.
 
 Operational notes:
 
-- Keep crawler actions disabled in cloud unless secrets are configured.
+- Crawler refresh/rebuild actions are not exposed in app UI.
 - After changing `requirements.txt` or `.streamlit/config.toml`, trigger a redeploy from Streamlit Cloud app settings.

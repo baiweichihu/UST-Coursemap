@@ -76,7 +76,7 @@ Acceptance criteria:
 
 Implementation notes:
 - [x] Search by course code/title implemented in Streamlit prototype.
-- [x] Relation filter (pre/co/exclusion) implemented in Streamlit prototype.
+- [x] Relations now always enabled (pre/co/exclusion), and relation filter control removed in current Streamlit UI.
 - [x] Click focuses full connected subgraph and shows full detail panel.
 - [x] Pre-req uses double-line shaft emulation (`=>`), co-req solid single line, exclusion dashed single line.
 
@@ -85,7 +85,7 @@ Acceptance criteria:
 
 ## Milestone 5: UX Enhancements (P1)
 - [x] Add search by course code/title.
-- [x] Add relation filter (pre-req only / exclusion only / both).
+- [x] Add relation filter (historical); later simplified to always-on relations in current UI.
 - [x] Add completed-course marking.
 - [x] Add HTML export for current view.
 - [x] Improve readability for dense graph sections.
@@ -96,7 +96,7 @@ Acceptance criteria:
 ## Milestone 6: Streamlit App + Deployment (P0)
 - [x] Wrap data loading + graph view into Streamlit app.
 - [x] Add semester selector and snapshot status indicator (snapshot exists / missing).
-- [x] Provide manual "force refresh" action for new semester setup only.
+- [x] Manual refresh/rebuild UI actions were removed from cloud-facing app to keep runtime behavior read-only.
 - [x] Add basic error handling and empty-state UI.
 - [x] Add Streamlit cloud-ready config and secrets template (`.streamlit/config.toml`, `.streamlit/secrets.toml.example`).
 - [x] Verify Streamlit app startup locally with deployment-equivalent command.

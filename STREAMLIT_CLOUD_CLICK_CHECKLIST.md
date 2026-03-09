@@ -19,10 +19,10 @@ Use this checklist exactly in Streamlit Community Cloud UI.
 6. In `App URL` (optional), set a readable slug.
 7. Click `Advanced settings`:
    - [ ] `Python version`: leave default (or select project-compatible 3.12+).
-   - [ ] `Secrets`: keep empty unless you need cloud-side refresh actions.
+   - [ ] `Secrets`: optional; currently app UI does not expose cloud-side refresh actions.
 8. Click `Deploy`.
 
-## C) Optional Secrets (only if using refresh buttons in cloud)
+## C) Optional Secrets (reserved for future crawler tooling)
 
 Open app `Settings` -> `Secrets` and paste:
 
@@ -39,7 +39,8 @@ Then click `Save` and `Reboot app`.
 - [ ] Semester selector shows at least one semester (for example `2530`).
 - [ ] Graph is visible with nodes and edges.
 - [ ] Search by `COMP 1021` works.
-- [ ] Relation filter toggles graph edges.
+- [ ] Subject filter works.
+- [ ] Completed courses list supports add/remove (one course per row, right-side red `-`).
 - [ ] `Download Current View (HTML)` works.
 
 ## E) URL Acceptance Record (copy back to TODOTASK.md)
